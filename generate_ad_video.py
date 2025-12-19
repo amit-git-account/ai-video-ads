@@ -3,6 +3,8 @@ import base64
 import subprocess
 import textwrap
 import uuid
+import argparse
+
 from pathlib import Path
 
 from openai import OpenAI
@@ -100,9 +102,9 @@ Product description:
     scenes = ad["scenes"]
 
     # If fewer than 5 scenes, pad with a CTA-like scene(s)
-    if len(scenes) < 5:
+    if len(scenes) < 3:
         fallback_visual = "A clean product hero shot on a studio background, modern lighting, shallow depth of field."
-        while len(scenes) < 5:
+        while len(scenes) < 3:
             scenes.append({
                 "seconds": 4,
                 "caption": "Order now",
@@ -111,7 +113,7 @@ Product description:
             })
 
     # If more than 5 scenes, trim
-    if len(scenes) > 5:
+    if len(scenes) > 3:
         ad["scenes"] = scenes[:5]
     else:
         ad["scenes"] = scenes
@@ -234,9 +236,21 @@ def concat_with_audio(segments: list[Path], audio_path: Path, out_path: Path):
 
 
 def main():
-    product_desc = input("\nPaste product description:\n> ").strip()
-    platform = input("Platform (TikTok/IG/YT) [TikTok]: ").strip() or "TikTok"
-    tone = input("Tone (Bold/Clean/Fun) [Bold]: ").strip() or "Bold"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--desc", type=str, help="Product description")
+    parser.add_argument("--platform", type=str, default="TikTok")
+    parser.add_argument("--tone", type=str, default="Bold")
+    args = parser.parse_args()
+
+    if args.desc:
+        product_desc = args.desc
+        platform = args.platform
+        tone = args.tone
+    else:
+        print("\nPaste product description:")
+        product_desc = input("> ")
+        platform = input("Platform (TikTok/IG/YT) [TikTok]: ") or "TikTok"
+        tone = input("Tone (Bold/Clean/Fun) [Bold]: ") or "Bold"
 
     workdir = Path("out") / f"ad_{uuid.uuid4().hex[:8]}"
     workdir.mkdir(parents=True, exist_ok=True)
