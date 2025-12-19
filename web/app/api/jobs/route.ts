@@ -34,3 +34,24 @@ export async function POST(req: Request) {
     supabase_url: process.env.NEXT_PUBLIC_SUPABASE_URL,
   });
 }
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const status = searchParams.get("status") ?? "done";
+  const limit = Number(searchParams.get("limit") ?? "6");
+
+  const supabase = supabaseServer();
+
+  const { data, error } = await supabase
+    .from("jobs")
+    .select("id,status,result_url,created_at,prompt,platform,tone")
+    .eq("status", status)
+    .order("created_at", { ascending: false })
+    .limit(Math.min(Math.max(limit, 1), 24));
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ jobs: data ?? [] });
+}

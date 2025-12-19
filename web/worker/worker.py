@@ -48,7 +48,7 @@ def claim_one_job():
     job = rows[0]
     upd = (
         client.table("jobs")
-        .update({"status": "processing"})
+        .update({"status": "planning"})
         .eq("id", job["id"])
         .eq("status", "queued")
         .execute()
@@ -91,7 +91,11 @@ def main():
         try:
             print("HAS OPENAI KEY:", bool(os.environ.get("OPENAI_API_KEY")))
             print("Starting generate_video() now...")
+            set_status(job_id, "generating")
+
             mp4_path = generate_video(prompt, platform, tone, repo_root)
+            set_status(job_id, "uploading")
+
             key = f"jobs/{job_id}/final_ad.mp4"
 
             upload_mp4(mp4_path, key)

@@ -11,7 +11,9 @@ export default function Home() {
   const statusLabel = useMemo(() => {
     if (!status) return "Idle";
     if (status === "queued") return "Queued";
-    if (status === "processing") return "Generating…";
+    if (status === "planning") return "Planning";
+    if (status === "generating") return "Generating";
+    if (status === "uploading") return "Uploading";
     if (status === "done") return "Done";
     if (status === "failed") return "Failed";
     return status;
@@ -24,8 +26,8 @@ export default function Home() {
     const poll = async () => {
       const res = await fetch(`/api/jobs/${jobId}`, { cache: "no-store" });
       if (!res.ok) return;
-      const data = await res.json();
 
+      const data = await res.json();
       setStatus(data.status);
       setResultUrl(data.result_url ?? null);
 
@@ -41,6 +43,7 @@ export default function Home() {
   const createJob = async () => {
     setStatus("queued");
     setResultUrl(null);
+    setJobId(null);
 
     const res = await fetch("/api/jobs", {
       method: "POST",
@@ -53,10 +56,15 @@ export default function Home() {
     });
 
     const data = await res.json();
-    setJobId(data.job_id);
+    setJobId(data.job_id ?? data.id ?? null);
   };
 
-  const disabled = !desc.trim() || status === "queued" || status === "processing";
+  const disabled =
+    !desc.trim() ||
+    status === "queued" ||
+    status === "planning" ||
+    status === "generating" ||
+    status === "uploading";
 
   return (
     <main
@@ -86,11 +94,21 @@ export default function Home() {
                 width: 38,
                 height: 38,
                 borderRadius: 12,
-                background: "linear-gradient(135deg, rgba(99,102,241,1), rgba(236,72,153,1))",
+                background:
+                  "linear-gradient(135deg, rgba(99,102,241,1), rgba(236,72,153,1))",
                 boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
               }}
             />
-            <div style={{ fontWeight: 800, letterSpacing: 0.1,fontSize: 64, lineHeight: 1 }}>AI Video Ads</div>
+            <div
+              style={{
+                fontWeight: 800,
+                letterSpacing: 0.1,
+                fontSize: 64,
+                lineHeight: 1,
+              }}
+            >
+              AI Video Ads
+            </div>
           </div>
 
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -127,10 +145,19 @@ export default function Home() {
             }}
           >
             <h1 style={{ fontSize: 44, lineHeight: 1.05, margin: 0 }}>
-              Turn a product description into a <span style={{ color: "#a5b4fc" }}>TikTok-style video ad</span>
+              Turn a product description into a{" "}
+              <span style={{ color: "#a5b4fc" }}>TikTok-style video ad</span>
             </h1>
-            <p style={{ marginTop: 12, marginBottom: 18, color: "rgba(255,255,255,0.78)", fontSize: 16 }}>
-              Paste a description → we generate scenes, images, audio, and stitch a short ad video. Async job + download link.
+            <p
+              style={{
+                marginTop: 12,
+                marginBottom: 18,
+                color: "rgba(255,255,255,0.78)",
+                fontSize: 16,
+              }}
+            >
+              Paste a description → we generate scenes, images, audio, and stitch
+              a short ad video. Async job + download link.
             </p>
 
             <div
@@ -158,7 +185,14 @@ export default function Home() {
                 }}
               />
 
-              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
                 <button
                   onClick={createJob}
                   disabled={disabled}
@@ -172,15 +206,22 @@ export default function Home() {
                     color: "white",
                     fontWeight: 700,
                     cursor: disabled ? "not-allowed" : "pointer",
-                    boxShadow: disabled ? "none" : "0 16px 40px rgba(0,0,0,0.35)",
+                    boxShadow: disabled
+                      ? "none"
+                      : "0 16px 40px rgba(0,0,0,0.35)",
                   }}
                 >
-                  {status === "processing" ? "Generating…" : "Generate video"}
+                  {status === "generating" || status === "planning" || status === "uploading"
+                    ? "Generating…"
+                    : "Generate video"}
                 </button>
 
                 {jobId && (
                   <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>
-                    Job: <code style={{ color: "rgba(255,255,255,0.9)" }}>{jobId}</code>
+                    Job:{" "}
+                    <code style={{ color: "rgba(255,255,255,0.9)" }}>
+                      {jobId}
+                    </code>
                   </span>
                 )}
 
@@ -205,18 +246,91 @@ export default function Home() {
                 )}
               </div>
 
-              {status === "failed" && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    padding: 12,
-                    borderRadius: 14,
-                    background: "rgba(239,68,68,0.12)",
-                    border: "1px solid rgba(239,68,68,0.25)",
-                    color: "rgba(255,255,255,0.9)",
-                  }}
-                >
-                  Generation failed. Try a shorter prompt, or retry in a minute.
+              {/* STATUS + PROGRESS */}
+              {status && (
+                <div style={{ marginTop: 6 }}>
+                  {/* FAILED */}
+                  {status === "failed" && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        padding: 12,
+                        borderRadius: 14,
+                        background: "rgba(239,68,68,0.12)",
+                        border: "1px solid rgba(239,68,68,0.25)",
+                        color: "rgba(255,255,255,0.9)",
+                      }}
+                    >
+                      ❌ Video generation failed. Try a shorter prompt and retry.
+                    </div>
+                  )}
+
+                  {/* IN-PROGRESS */}
+                  {status !== "failed" && status !== "done" && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        padding: 12,
+                        borderRadius: 14,
+                        background: "rgba(99,102,241,0.12)",
+                        border: "1px solid rgba(99,102,241,0.25)",
+                        color: "rgba(255,255,255,0.9)",
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                        {status === "queued" && "⏳ Queued"}
+                        {status === "planning" && "🧠 Planning scenes"}
+                        {status === "generating" && "🎬 Generating video"}
+                        {status === "uploading" && "☁️ Uploading final video"}
+                      </div>
+
+                      <div
+                        style={{
+                          height: 10,
+                          borderRadius: 999,
+                          background: "rgba(255,255,255,0.15)",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${
+                              {
+                                queued: 10,
+                                planning: 30,
+                                generating: 65,
+                                uploading: 90,
+                              }[status as "queued" | "planning" | "generating" | "uploading"] ?? 0
+                            }%`,
+                            height: "100%",
+                            background: "rgba(99,102,241,1)",
+                            transition: "width 0.6s ease",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* DONE */}
+                  {status === "done" && resultUrl && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        padding: 12,
+                        borderRadius: 14,
+                        background: "rgba(34,197,94,0.12)",
+                        border: "1px solid rgba(34,197,94,0.25)",
+                        color: "rgba(255,255,255,0.9)",
+                      }}
+                    >
+                      ✅ Video ready!
+                      <div style={{ marginTop: 10 }}>
+                        <a href={resultUrl} target="_blank" rel="noreferrer">
+                          Download video
+                        </a>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -231,11 +345,24 @@ export default function Home() {
               border: "1px solid rgba(255,255,255,0.10)",
             }}
           >
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", marginBottom: 10 }}>
+            <div
+              style={{
+                fontSize: 14,
+                color: "rgba(255,255,255,0.75)",
+                marginBottom: 10,
+              }}
+            >
               What you get
             </div>
 
-            <ul style={{ margin: 0, paddingLeft: 18, color: "rgba(255,255,255,0.85)", lineHeight: 1.7 }}>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: 18,
+                color: "rgba(255,255,255,0.85)",
+                lineHeight: 1.7,
+              }}
+            >
               <li>Short multi-scene ad video (MP4)</li>
               <li>Voiceover + background music</li>
               <li>R2 download link when done</li>
@@ -251,11 +378,24 @@ export default function Home() {
                 background: "rgba(0,0,0,0.25)",
               }}
             >
-              <div style={{ padding: 14, fontSize: 13, color: "rgba(255,255,255,0.78)" }}>
+              <div
+                style={{
+                  padding: 14,
+                  fontSize: 13,
+                  color: "rgba(255,255,255,0.78)",
+                }}
+              >
                 Tip: keep descriptions <b>1–2 sentences</b> for faster renders.
               </div>
-              <div style={{ padding: 14, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.72)" }}>Example prompts</div>
+              <div
+                style={{
+                  padding: 14,
+                  borderTop: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.72)" }}>
+                  Example prompts
+                </div>
                 <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
                   {[
                     "Protein bar for busy professionals — 20g protein, no sugar crash.",
@@ -282,7 +422,13 @@ export default function Home() {
               </div>
             </div>
 
-            <div style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+            <div
+              style={{
+                marginTop: 14,
+                fontSize: 12,
+                color: "rgba(255,255,255,0.55)",
+              }}
+            >
               MVP note: results are generated asynchronously (polling).
             </div>
           </div>
