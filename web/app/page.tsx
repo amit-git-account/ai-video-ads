@@ -6,6 +6,7 @@ export default function Home() {
   const [desc, setDesc] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!jobId) return;
@@ -16,6 +17,7 @@ export default function Home() {
       if (!res.ok) return;
       const data = await res.json();
       setStatus(data.status);
+      setResultUrl(data.result_url ?? null);
       if (data.status !== "done") {
         t = setTimeout(poll, 1000);
       }
@@ -64,6 +66,13 @@ export default function Home() {
         <div style={{ marginTop: 20 }}>
           <div><b>Job ID:</b> {jobId}</div>
           <div><b>Status:</b> {status}</div>
+          {status === "done" && resultUrl && (
+        <div style={{ marginTop: 12 }}>
+        <a href={resultUrl} target="_blank" rel="noreferrer">
+        Download video
+      </a>
+    </div>
+)}
         </div>
       )}
     </main>

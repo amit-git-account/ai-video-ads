@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { jobs } from "@/app/lib/jobs";
+import { supabaseServer } from "../../../lib/supabase-server";
 
 export async function GET(
   _req: Request,
@@ -7,11 +7,20 @@ export async function GET(
 ) {
   const { id } = await ctx.params;
 
-  const job = jobs.get(id);
-  if (!job) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  const supabase = supabaseServer();
+  const { data, error } = await supabase
+    .from("jobs")
+    .select("id,status,result_url")
+    .eq("id", id)
+    .single();
 
-  const elapsed = Date.now() - job.createdAt;
-  const status = elapsed >= 5000 ? "done" : "queued";
+  if (error || !data?.id) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
 
-  return NextResponse.json({ job_id: id, status });
+  return NextResponse.json({
+    job_id: data.id,
+    status: data.status,
+    result_url: data.result_url ?? null,
+  });
 }
